@@ -320,7 +320,6 @@ probes = [
 def probe(ipaddress, port, starttls, specified_probe):
 
     results = {}
-
     for probe in probes:
         if specified_probe and specified_probe != type(probe).__name__:
             continue
@@ -367,6 +366,8 @@ def main():
                        help='List the available probes')
     options.add_option('-v', '--version', dest='version', action='store_true',
                        help='Display the version information')
+    options.add_option('-o', '--output', dest='output',
+                       help='Store output as XML')
 
     opts, args = options.parse_args()
 
@@ -396,7 +397,6 @@ def main():
         print 'Please submit your new fingerprint for inclusion in the next release!'
         return
     
-    # Print the results of the probe
     if opts.list:
         for key, val in sorted(results.items()):
             print '%24s:\t%s' % (key, val)
@@ -406,6 +406,22 @@ def main():
     matches = probe_db.find_matches(results)
     count = 0
     prev_score = None
+    # Print the results of the probe
+    if opts.output:
+        with open(opts.output, 'w') as f:
+            f.write('<?xml version="1.0"?>\n')
+            f.write('<host hostname="%s" port="%d">\n' % (args[0], opts.port))
+            for server, score in matches:
+                if opts.matches:
+                    if score != prev_score:
+                        prev_score = score
+                        count += 1
+                    if count > opts.matches:
+                        break
+
+                f.write('<item engine="{0}">{1:.2f}%</item>\n'.format(server, score*100))
+            f.write('</host>\n')
+
     for server, score in matches:
         if opts.matches:
             if score != prev_score:
@@ -415,6 +431,7 @@ def main():
                 break
 
         print("{0:>65}: {1:6.2f}%".format(server, score*100))
+
 
 if __name__ == '__main__':
     main()
